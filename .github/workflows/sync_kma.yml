@@ -15,7 +15,7 @@ on:
       start_year:
         description: '동기화 시작 연도 (기본: 2001)'
         required: false
-        default: '2001'
+        default: '1954'
       end_year:
         description: '동기화 종료 연도 (비워두면 현재 연도)'
         required: false

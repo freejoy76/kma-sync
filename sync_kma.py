@@ -7,7 +7,7 @@ GitHub Actions에서 매일 실행, Supabase에 없는 연도만 보완합니다
   KMA_API_KEY          기상청 공공데이터 API 키 (인코딩 여부 무관)
   SUPABASE_URL         Supabase 프로젝트 URL
   SUPABASE_SERVICE_KEY Supabase service_role 키 (RLS 우회)
-  START_YEAR           동기화 시작 연도 (기본: 2001)
+  START_YEAR           동기화 시작 연도 (기본: 1954)
   END_YEAR             동기화 종료 연도 (기본: 실행 연도)
   MAX_CALLS            최대 KMA API 호출 횟수 (기본: 1000)
   STATION_IDS          처리할 지점 번호, 쉼표 구분 (예: 90,95 / 기본: 전체)
@@ -248,7 +248,7 @@ def main():
     # URL 인코딩된 API 키 자동 디코딩 (%2F → / 등)
     api_key = unquote(api_key_raw)
 
-    start_year = int(get_env('START_YEAR', '2001', required=False) or '2001')
+    start_year = int(get_env('START_YEAR', '1954', required=False) or '1954')
     end_year   = int(get_env('END_YEAR',   str(date.today().year), required=False) or str(date.today().year))
     max_calls  = int(get_env('MAX_CALLS',  '1000', required=False) or '1000')
 
