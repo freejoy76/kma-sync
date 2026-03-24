@@ -40,10 +40,10 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-          cache-dependency-path: kma-sync/requirements.txt
+          cache-dependency-path: requirements.txt
 
       - name: 의존성 설치
-        run: pip install -r kma-sync/requirements.txt
+        run: pip install -r requirements.txt
 
       - name: KMA → Supabase 동기화 실행
         env:
@@ -54,4 +54,4 @@ jobs:
           START_YEAR:           ${{ github.event.inputs.start_year   || '2001' }}
           END_YEAR:             ${{ github.event.inputs.end_year     || ''     }}
           STATION_IDS:          ${{ github.event.inputs.station_ids  || ''     }}
-        run: python kma-sync/sync_kma.py
+        run: python sync_kma.py
