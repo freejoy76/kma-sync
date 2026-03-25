@@ -24,6 +24,10 @@ on:
         description: '특정 지점만 처리, 쉼표 구분 (예: 90,95,100). 비워두면 전체 95개 지점'
         required: false
         default: ''
+      force_overwrite:
+        description: '이미 있는 연도도 강제 덮어쓰기 (true/false)'
+        required: false
+        default: 'false'
 
 jobs:
   sync:
@@ -53,5 +57,6 @@ jobs:
           MAX_CALLS:            ${{ github.event.inputs.max_calls    || '1000' }}
           START_YEAR:           ${{ github.event.inputs.start_year   || '2001' }}
           END_YEAR:             ${{ github.event.inputs.end_year     || ''     }}
-          STATION_IDS:          ${{ github.event.inputs.station_ids  || ''     }}
+          STATION_IDS:          ${{ github.event.inputs.station_ids    || ''      }}
+          FORCE_OVERWRITE:      ${{ github.event.inputs.force_overwrite || 'false' }}
         run: python sync_kma.py

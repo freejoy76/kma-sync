@@ -199,13 +199,13 @@ def fetch_kma_month(api_key: str, station_id: int, year: int, month: int) -> dic
             date_str = tm[:10]          # "2023-07-01"
             hour     = int(tm[11:13])   # 0 ~ 23
 
-            # 강우량 변환: mm → 0.1mm 정수 (INTEGER 컬럼)
-            # 비강우·결측 → None (JSON null → DB NULL, JS 클라이언트와 동일)
+            # 강우량 변환: mm → 0.1mm 정수 (INTEGER NOT NULL 컬럼)
+            # 비강우·결측 → 0 (JS 앱이 ''를 보내면 PostgREST가 0으로 변환, 동일 결과)
             try:
                 rn_val = float(item.get('rn', 0) or 0)
-                rn = round(rn_val * 10) if rn_val > 0 else None
+                rn = round(rn_val * 10) if rn_val > 0 else 0
             except (ValueError, TypeError):
-                rn = None
+                rn = 0
 
             # 00:00 → 전날 24시로 이동
             if hour == 0:
@@ -234,7 +234,7 @@ def build_year_records(station_id: int, year: int, daily_map: dict) -> list:
             continue
         record = {'Station': station_id, 'Year': y, 'Month': m, 'Day': d}
         for h in range(1, 25):
-            record[str(h)] = hours.get(h, None)  # 미관측 시간 → None (DB NULL)
+            record[str(h)] = hours.get(h, 0)  # 미관측 시간 → 0 (INTEGER NOT NULL)
         records.append(record)
     return records
 
@@ -249,9 +249,10 @@ def main():
     # URL 인코딩된 API 키 자동 디코딩 (%2F → / 등)
     api_key = unquote(api_key_raw)
 
-    start_year = int(get_env('START_YEAR', '1954', required=False) or '1954')
-    end_year   = int(get_env('END_YEAR',   str(date.today().year), required=False) or str(date.today().year))
-    max_calls  = int(get_env('MAX_CALLS',  '1000', required=False) or '1000')
+    start_year    = int(get_env('START_YEAR', '1954', required=False) or '1954')
+    end_year      = int(get_env('END_YEAR',   str(date.today().year), required=False) or str(date.today().year))
+    max_calls     = int(get_env('MAX_CALLS',  '1000', required=False) or '1000')
+    force_overwrite = get_env('FORCE_OVERWRITE', 'false', required=False).lower() == 'true'
 
     # 특정 지점 필터 (STATION_IDS=90,95,100)
     station_ids_env = get_env('STATION_IDS', '', required=False)
@@ -265,6 +266,7 @@ def main():
     log.info("  KMA ASOS → Supabase 동기화 시작")
     log.info(f"  대상: {len(stations)}개 지점 | 기간: {start_year}~{end_year}")
     log.info(f"  최대 API 호출: {max_calls}회")
+    log.info(f"  덮어쓰기 강제: {'예' if force_overwrite else '아니오 (누락 연도만)'}")
     log.info("=" * 55)
 
     # Supabase 연결
@@ -284,9 +286,13 @@ def main():
         stn_name = station['name']
         log.info(f"\n[{done_count + 1}/{len(stations)}] {stn_name} (#{stn_id})")
 
-        # 보유 연도 확인
-        present = get_present_years(sb, stn_id, start_year, end_year)
-        missing = [y for y in range(start_year, end_year + 1) if y not in present]
+        # 보유 연도 확인 (FORCE_OVERWRITE=true 시 건너뜀 없이 전체 재처리)
+        if force_overwrite:
+            missing = list(range(start_year, end_year + 1))
+            log.info(f"  🔄 덮어쓰기 모드: {len(missing)}개 연도 전체 재처리")
+        else:
+            present = get_present_years(sb, stn_id, start_year, end_year)
+            missing = [y for y in range(start_year, end_year + 1) if y not in present]
 
         if not missing:
             log.info(f"  ✅ 전체 보유 ({start_year}~{end_year}) — 건너뜀")
