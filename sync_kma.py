@@ -18,7 +18,7 @@ import sys
 import time
 import logging
 import calendar
-from datetime import date, timedelta
+from datetime import date
 from urllib.parse import unquote
 
 import requests
@@ -207,11 +207,9 @@ def fetch_kma_month(api_key: str, station_id: int, year: int, month: int) -> dic
             except (ValueError, TypeError):
                 rn = 0
 
-            # 00:00 → 전날 24시로 이동
-            if hour == 0:
-                d = date.fromisoformat(date_str) - timedelta(days=1)
-                date_str = d.isoformat()
-                hour = 24
+            # 구 컨벤션 유지: h1=0시, h2=1시, ..., h24=23시
+            # KMA API 0~23 → PRN h1~h24 (1칸 오른쪽 이동)
+            hour = hour + 1
 
             daily_map.setdefault(date_str, {})[hour] = rn
 
