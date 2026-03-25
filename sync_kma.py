@@ -253,6 +253,7 @@ def main():
     end_year      = int(get_env('END_YEAR',   str(date.today().year), required=False) or str(date.today().year))
     max_calls     = int(get_env('MAX_CALLS',  '1000', required=False) or '1000')
     force_overwrite = get_env('FORCE_OVERWRITE', 'false', required=False).lower() == 'true'
+    current_year  = date.today().year  # 현재 연도는 항상 재처리 (데이터 누적 중)
 
     # 특정 지점 필터 (STATION_IDS=90,95,100)
     station_ids_env = get_env('STATION_IDS', '', required=False)
@@ -266,7 +267,7 @@ def main():
     log.info("  KMA ASOS → Supabase 동기화 시작")
     log.info(f"  대상: {len(stations)}개 지점 | 기간: {start_year}~{end_year}")
     log.info(f"  최대 API 호출: {max_calls}회")
-    log.info(f"  덮어쓰기 강제: {'예' if force_overwrite else '아니오 (누락 연도만)'}")
+    log.info(f"  덮어쓰기 강제: {'예' if force_overwrite else f'아니오 (누락 연도 + {current_year}년 항상 갱신)'}")
     log.info("=" * 55)
 
     # Supabase 연결
@@ -292,6 +293,8 @@ def main():
             log.info(f"  🔄 덮어쓰기 모드: {len(missing)}개 연도 전체 재처리")
         else:
             present = get_present_years(sb, stn_id, start_year, end_year)
+            # 현재 연도는 연중 데이터가 쌓이는 중이므로 항상 재처리
+            present.discard(current_year)
             missing = [y for y in range(start_year, end_year + 1) if y not in present]
 
         if not missing:
