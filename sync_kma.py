@@ -199,12 +199,13 @@ def fetch_kma_month(api_key: str, station_id: int, year: int, month: int) -> dic
             date_str = tm[:10]          # "2023-07-01"
             hour     = int(tm[11:13])   # 0 ~ 23
 
-            # 강우량 변환: mm → 0.1mm 정수, 비강우·결측은 None (DB NULL)
+            # 강우량 변환: mm → 0.1mm 정수 (기존 DB 형식과 동일)
+            # 비강우·결측 → 0  (DB는 INTEGER 타입, NULL 미사용)
             try:
                 rn_val = float(item.get('rn', 0) or 0)
-                rn = round(rn_val * 10) if rn_val > 0 else None
+                rn = round(rn_val * 10) if rn_val > 0 else 0
             except (ValueError, TypeError):
-                rn = None
+                rn = 0
 
             # 00:00 → 전날 24시로 이동
             if hour == 0:
@@ -233,7 +234,7 @@ def build_year_records(station_id: int, year: int, daily_map: dict) -> list:
             continue
         record = {'Station': station_id, 'Year': y, 'Month': m, 'Day': d}
         for h in range(1, 25):
-            record[str(h)] = hours.get(h)   # 미관측 시간 → None (DB NULL)
+            record[str(h)] = hours.get(h, 0)  # 미관측 시간 → 0 (기존 DB 형식)
         records.append(record)
     return records
 
