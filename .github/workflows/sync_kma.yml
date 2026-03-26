@@ -33,7 +33,7 @@ jobs:
   sync:
     name: 기상청 데이터 동기화
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 360
 
     steps:
       - name: 저장소 체크아웃
