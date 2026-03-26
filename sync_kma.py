@@ -207,11 +207,10 @@ def fetch_kma_month(api_key: str, station_id: int, year: int, month: int) -> dic
             except (ValueError, TypeError):
                 rn = 0
 
-            # 구 컨벤션 유지: h1=0시, h2=1시, ..., h24=23시
-            # KMA API 0~23 → PRN h1~h24 (1칸 오른쪽 이동)
-            hour = hour + 1
+            # 구 컨벤션: 1시→h1, 2시→h2, ..., 23시→h23, 0시(자정)→h24 당일
+            h = 24 if hour == 0 else hour
 
-            daily_map.setdefault(date_str, {})[hour] = rn
+            daily_map.setdefault(date_str, {})[h] = rn
 
         return daily_map
 
