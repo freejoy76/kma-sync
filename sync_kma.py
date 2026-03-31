@@ -18,7 +18,7 @@ import sys
 import time
 import logging
 import calendar
-from datetime import date
+from datetime import date, timedelta
 from urllib.parse import unquote
 
 import requests
@@ -207,10 +207,14 @@ def fetch_kma_month(api_key: str, station_id: int, year: int, month: int) -> dic
             except (ValueError, TypeError):
                 rn = 0
 
-            # 구 컨벤션: 1시→h1, 2시→h2, ..., 23시→h23, 0시(자정)→h24 당일
-            h = 24 if hour == 0 else hour
+            # 구 컨벤션: 1시→h1, 2시→h2, ..., 23시→h23, 0시(자정)→전날 h24
+            # KMA "01-20 00:00" = 01-19 24시 → h24 of 01-19 (전날)
+            if hour == 0:
+                d = date.fromisoformat(date_str) - timedelta(days=1)
+                date_str = d.isoformat()
+                hour = 24
 
-            daily_map.setdefault(date_str, {})[h] = rn
+            daily_map.setdefault(date_str, {})[hour] = rn
 
         return daily_map
 
