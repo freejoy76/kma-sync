@@ -319,7 +319,12 @@ def main():
                     break
 
                 monthly = fetch_kma_month(api_key, stn_id, year, month)
-                year_map.update(monthly)
+                # 월말 자정(h24) 데이터가 다음달 fetch에서 오므로 merge 필요
+                for date_key, hour_data in monthly.items():
+                    if date_key in year_map:
+                        year_map[date_key].update(hour_data)
+                    else:
+                        year_map[date_key] = hour_data
                 total_calls += 1
                 year_calls  += 1
 
