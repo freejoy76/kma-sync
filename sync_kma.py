@@ -175,55 +175,63 @@ def fetch_kma_month(api_key: str, station_id: int, year: int, month: int) -> dic
         'stnIds':     station_id,
     }
 
-    try:
-        resp = requests.get(KMA_ENDPOINT, params=params, timeout=30)
-        resp.raise_for_status()
-        data   = resp.json()
-        header = data['response']['header']
+    max_retries = 3
+    for attempt in range(1, max_retries + 1):
+        try:
+            resp = requests.get(KMA_ENDPOINT, params=params, timeout=30)
+            resp.raise_for_status()
+            data   = resp.json()
+            header = data['response']['header']
 
-        if header['resultCode'] != '00':
-            log.debug(f"    {year}-{month:02d}: 결과 없음 ({header['resultMsg']})")
-            return {}
+            if header['resultCode'] != '00':
+                log.debug(f"    {year}-{month:02d}: 결과 없음 ({header['resultMsg']})")
+                return {}
 
-        items = data['response']['body']['items']['item']
-        if not isinstance(items, list):
-            items = [items]
+            items = data['response']['body']['items']['item']
+            if not isinstance(items, list):
+                items = [items]
 
-        daily_map: dict = {}
+            daily_map: dict = {}
 
-        for item in items:
-            tm = item.get('tm', '')
-            if len(tm) < 16:
-                continue
+            for item in items:
+                tm = item.get('tm', '')
+                if len(tm) < 16:
+                    continue
 
-            date_str = tm[:10]          # "2023-07-01"
-            hour     = int(tm[11:13])   # 0 ~ 23
+                date_str = tm[:10]          # "2023-07-01"
+                hour     = int(tm[11:13])   # 0 ~ 23
 
-            # 강우량 변환: mm → 0.1mm 정수 (INTEGER NOT NULL 컬럼)
-            # 비강우·결측 → 0 (JS 앱이 ''를 보내면 PostgREST가 0으로 변환, 동일 결과)
-            try:
-                rn_val = float(item.get('rn', 0) or 0)
-                rn = round(rn_val * 10) if rn_val > 0 else 0
-            except (ValueError, TypeError):
-                rn = 0
+                # 강우량 변환: mm → 0.1mm 정수 (INTEGER NOT NULL 컬럼)
+                # 비강우·결측 → 0 (JS 앱이 ''를 보내면 PostgREST가 0으로 변환, 동일 결과)
+                try:
+                    rn_val = float(item.get('rn', 0) or 0)
+                    rn = round(rn_val * 10) if rn_val > 0 else 0
+                except (ValueError, TypeError):
+                    rn = 0
 
-            # 구 컨벤션: 1시→h1, 2시→h2, ..., 23시→h23, 0시(자정)→전날 h24
-            # KMA "01-20 00:00" = 01-19 24시 → h24 of 01-19 (전날)
-            if hour == 0:
-                d = date.fromisoformat(date_str) - timedelta(days=1)
-                date_str = d.isoformat()
-                hour = 24
+                # 구 컨벤션: 1시→h1, 2시→h2, ..., 23시→h23, 0시(자정)→전날 h24
+                # KMA "01-20 00:00" = 01-19 24시 → h24 of 01-19 (전날)
+                if hour == 0:
+                    d = date.fromisoformat(date_str) - timedelta(days=1)
+                    date_str = d.isoformat()
+                    hour = 24
 
-            daily_map.setdefault(date_str, {})[hour] = rn
+                daily_map.setdefault(date_str, {})[hour] = rn
 
-        return daily_map
+            return daily_map
 
-    except requests.exceptions.Timeout:
-        log.warning(f"    {year}-{month:02d}: 요청 타임아웃")
-        return {}
-    except Exception as e:
-        log.warning(f"    {year}-{month:02d}: 오류 - {e}")
-        return {}
+        except requests.exceptions.Timeout:
+            log.warning(f"    {year}-{month:02d}: 타임아웃 (시도 {attempt}/{max_retries})")
+        except Exception as e:
+            log.warning(f"    {year}-{month:02d}: 오류 - {e} (시도 {attempt}/{max_retries})")
+
+        if attempt < max_retries:
+            wait = 2 ** attempt  # 2초, 4초 대기 후 재시도
+            log.info(f"    {wait}초 후 재시도...")
+            time.sleep(wait)
+
+    log.error(f"    {year}-{month:02d}: {max_retries}회 재시도 모두 실패 — 빈 데이터로 처리")
+    return {}
 
 
 def build_year_records(station_id: int, year: int, daily_map: dict) -> list:
