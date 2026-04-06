@@ -339,6 +339,20 @@ def main():
                 # KMA 서버 부하 방지 (0.3초 대기)
                 time.sleep(0.3)
 
+            # 연말 자정 보완: KMA "year+1-01-01 00:00" = year-12-31 h24
+            # 12월 fetch 범위(~23:00)에 포함되지 않으므로 별도 fetch
+            if total_calls < max_calls:
+                dec31_key = f"{year}-12-31"
+                patch = fetch_kma_month(api_key, stn_id, year + 1, 1)
+                if dec31_key in patch:
+                    if dec31_key in year_map:
+                        year_map[dec31_key].update(patch[dec31_key])
+                    else:
+                        year_map[dec31_key] = patch[dec31_key]
+                total_calls += 1
+                year_calls  += 1
+                time.sleep(0.3)
+
             records = build_year_records(stn_id, year, year_map)
             if records:
                 saved = upsert_records(sb, records)
