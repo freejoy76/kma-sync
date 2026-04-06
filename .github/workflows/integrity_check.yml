@@ -1,0 +1,48 @@
+name: 데이터 무결성 검사
+
+on:
+  workflow_dispatch:
+    inputs:
+      station_ids:
+        description: '검사할 지점 번호, 쉼표 구분 (예: 216,211). 비워두면 전체 95개 지점'
+        required: false
+        default: ''
+      start_year:
+        description: '검사 시작 연도'
+        required: false
+        default: '1954'
+      end_year:
+        description: '검사 종료 연도 (비워두면 현재 연도)'
+        required: false
+        default: ''
+
+jobs:
+  integrity-check:
+    name: 무결성 검사
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 3.11 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 무결성 검사 실행
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          PRN_DIR:              ./prn_data
+          STATION_IDS:          ${{ github.event.inputs.station_ids }}
+          START_YEAR:           ${{ github.event.inputs.start_year }}
+          END_YEAR:             ${{ github.event.inputs.end_year }}
+        run: python integrity_check.py
+        continue-on-error: true
