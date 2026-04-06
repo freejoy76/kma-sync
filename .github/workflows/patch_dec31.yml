@@ -11,20 +11,30 @@ on:
         description: '패치 종료 연도 (기본: 전년도)'
         required: false
         default: ''
-      max_calls:
-        description: '최대 KMA API 호출 횟수 (기본: 5000 / 일일 한도: 10000)'
-        required: false
-        default: '5000'
-      station_ids:
-        description: '특정 지점만 처리, 쉼표 구분 (예: 90,95,211). 비워두면 전체 95개 지점'
-        required: false
-        default: ''
 
 jobs:
   patch:
-    name: 12-31 h24 패치
+    name: 패치 그룹 ${{ matrix.group }}
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 120
+    strategy:
+      matrix:
+        include:
+          # 그룹 1: 서울·부산·대구·인천·광주·대전·울산·세종·경기·강원북부 (19개)
+          - group: 1
+            station_ids: '108,159,296,143,112,102,201,156,133,152,239,98,99,119,202,203,90,95,100'
+          # 그룹 2: 강원중남부·충청북도 (19개)
+          - group: 2
+            station_ids: '101,104,105,106,114,121,211,212,216,217,127,131,135,221,226,129,177,232,235'
+          # 그룹 3: 충청남도·전라북도·전라남도북부 (19개)
+          - group: 3
+            station_ids: '236,238,140,146,172,243,244,245,247,248,251,254,165,168,169,170,174,252,258'
+          # 그룹 4: 전라남도남부·경상북도 (19개)
+          - group: 4
+            station_ids: '259,260,261,262,266,268,115,130,136,137,138,271,272,273,276,277,278,279,281'
+          # 그룹 5: 경상북도남부·경상남도·제주 (19개)
+          - group: 5
+            station_ids: '283,155,162,192,253,255,257,263,264,284,285,288,289,294,295,184,185,188,189'
 
     steps:
       - name: 저장소 체크아웃
@@ -40,13 +50,13 @@ jobs:
       - name: 의존성 설치
         run: pip install -r requirements.txt
 
-      - name: 12-31 h24 패치 실행
+      - name: 12-31 h24 패치 실행 (그룹 ${{ matrix.group }})
         env:
           KMA_API_KEY:          ${{ secrets.KMA_API_KEY }}
           SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           START_YEAR:           ${{ github.event.inputs.start_year || '1954' }}
           END_YEAR:             ${{ github.event.inputs.end_year   || ''     }}
-          MAX_CALLS:            ${{ github.event.inputs.max_calls  || '5000' }}
-          STATION_IDS:          ${{ github.event.inputs.station_ids || ''    }}
+          MAX_CALLS:            '1200'
+          STATION_IDS:          ${{ matrix.station_ids }}
         run: python patch_dec31.py
